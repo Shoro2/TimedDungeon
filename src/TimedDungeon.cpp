@@ -19,6 +19,7 @@ enum Misc
     ENTRY_ENDBOSS   	= 510005,
 	CREATURE_AURA_ID	= 600001,
 	PLAYER_AURA_ID		= 600002,
+	SPELL_NO_REZ    	= 72351,
 };
 
 
@@ -190,25 +191,42 @@ public:
     {
         // time loss; revive at start after 5 seconds
 		WorldDatabase.Query("UPDATE TimedDungeon_runs SET deaths = deaths + 1 WHERE InstanceID = '{}'", instanceID);
-    }
+		killer->CastSpell(SPELL_NO_REZ, killer, true);
+		if(!killed->GetParty()){
+			killed->AddTimedEvent(5000, [player]() {
+				player->Revive();
+				player->Teleport();
+			});
+		}
+		else{
+			
+		}
+	}
 
     void OnChat(Player* player, uint32 type, uint32 lang, std::string& msg)
     {
-        // check current run; info commands
+        // commands:
+		// .info 
+		// .end
+		// .top
     }
 
     void OnMapChanged(Player* player)
     {
-        //end run
-        if (player->GetMap()->IsHeroic()) {
-            ChatHandler(player->GetSession()).SendSysMessage("detected hc");
+        if (player->GetMap()->IsDungeon()) {
+			//todo: show leaderboard top 5
         }
         else {
-            ChatHandler(player->GetSession()).SendSysMessage("no hc");
+            if(player->HasAura(PLAYER_AURA_ID)){
+				// out of dungeon with aura -> end run
+				auto pname = player->GetName();
+				WorldDatabase.Query("DELETE from TimedDungeon_runs WHERE player1 = '{}' OR player2 = '{}' OR player3 = '{}' OR player4 = '{}' OR player5 = '{}' ", pname,pname,pname,pname,pname);
+				ChatHandler(myPlayer->GetSession()).SendSysMessage("You have aborted your run by leaving the dungeon.");
+				player->RemoveAura(PLAYER_AURA_ID);
+			}
         }
     }
 };
-
 
 // Add all scripts in one
 void AddTimedDungeonScripts()
